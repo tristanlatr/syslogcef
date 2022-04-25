@@ -3,6 +3,8 @@ import typing as t
 import logging
 import sys
 
+import pytest
+
 from syslogcef import _CEFSender
 
 if t.TYPE_CHECKING:
@@ -48,7 +50,9 @@ def new_logger() -> 'str':
 
 def test_syslogcef(capsys:CapSys) -> None:
 
-    s = _CEFSender(new_logger(), deviceProduct='test-syslogcef', deviceVendor='Github',
+    s = _CEFSender(new_logger(), 
+        deviceProduct='test-syslogcef', 
+        deviceVendor='Github',
         deviceVersion='14.1')
 
     s.register_event('100', 'Device is reachable', 1)
@@ -63,3 +67,33 @@ def test_syslogcef(capsys:CapSys) -> None:
 CEF:0|Github|test-syslogcef|14.1|101|Device is slow to respond|5|msg=Ping time is: 521ms
 CEF:0|Github|test-syslogcef|14.1|102|Device is down|10|reason=Ping failed msg=Unreachable
 """
+
+def test_syslogcef_defaults(capsys:CapSys) -> None:
+
+    s = _CEFSender(new_logger())
+
+    s.register_event('100', 'Device is reachable', 1)
+    s.register_event('101', 'Device is slow to respond', 5)
+    s.register_event('102', 'Device is down', 10, reason="Ping failed")
+
+    s.send('100', message='Ping time is: 33ms')
+    s.send('101', message='Ping time is: 521ms')
+    s.send('102', message='Unreachable')
+
+    assert capsys.readouterr().out == """CEF:0|CEF Vendor|CEF Product|1.0|100|Device is reachable|1|msg=Ping time is: 33ms
+CEF:0|CEF Vendor|CEF Product|1.0|101|Device is slow to respond|5|msg=Ping time is: 521ms
+CEF:0|CEF Vendor|CEF Product|1.0|102|Device is down|10|reason=Ping failed msg=Unreachable
+"""
+
+def test_invalid_cef_field() -> None:
+    s = _CEFSender(new_logger())
+    with pytest.raises(ValueError):
+        s.register_event('100', 'Device is reachable', 1, host='name')
+    with pytest.raises(ValueError):
+        s.register_event('100', 'Device is reachable', 1, port='port')
+    with pytest.raises(ValueError):
+        s.register_event('100', 'Device is reachable', 1, port=443)
+    with pytest.raises(ValueError):
+        s.register_event('100', 'Device is reachable', 1, protocol=443)
+    with pytest.raises(ValueError):
+        s.register_event('100', 'Device is reachable', 1, protocol='https')
