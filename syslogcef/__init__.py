@@ -1,7 +1,7 @@
 import logging
 import socket
 import uuid
-from typing import Any, Dict
+from typing import Any, Dict, Union
 
 from rfc5424logging import Rfc5424SysLogHandler
 from cefevent import CEFEvent
@@ -27,7 +27,7 @@ class _Sender:
     """
 
     def __init__(self, 
-                logger:str,
+                logger:Union[str, logging.Logger],
                 deviceProduct:str, 
                 **fields:Any ) -> None:
         """
@@ -36,7 +36,7 @@ class _Sender:
         You might want to use SyslogCEFSender() to create a sender from syslog server hostname directly.
         """
         
-        self.logger = logging.getLogger(logger)
+        self.logger = logging.getLogger(logger) if isinstance(logger, str) else logger
 
         self._fields = dict(
             deviceProduct = deviceProduct,
@@ -124,7 +124,7 @@ class SyslogCEFSender(_Sender):
         logger.setLevel(logging.DEBUG)
         logger.addHandler(sh)
 
-        super().__init__(logger_name, deviceProduct, 
+        super().__init__(logger, deviceProduct, 
             deviceVendor=deviceVendor, 
             deviceVersion=deviceVersion, 
             **fields)
