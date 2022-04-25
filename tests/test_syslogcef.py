@@ -3,7 +3,7 @@ import typing as t
 import logging
 import sys
 
-from syslogcef import _Sender
+from syslogcef import _CEFSender
 
 if t.TYPE_CHECKING:
     class CapLog(t.Protocol):
@@ -48,12 +48,12 @@ def new_logger() -> 'str':
 
 def test_syslogcef(capsys:CapSys) -> None:
 
-    s = _Sender(new_logger(), deviceProduct='test-syslogcef', deviceVendor='Github',
+    s = _CEFSender(new_logger(), deviceProduct='test-syslogcef', deviceVendor='Github',
         deviceVersion='14.1')
 
     s.register_event('100', 'Device is reachable', 1)
     s.register_event('101', 'Device is slow to respond', 5)
-    s.register_event('102', 'Device is down', 10)
+    s.register_event('102', 'Device is down', 10, reason="Ping failed")
 
     s.send('100', message='Ping time is: 33ms')
     s.send('101', message='Ping time is: 521ms')
@@ -61,5 +61,5 @@ def test_syslogcef(capsys:CapSys) -> None:
 
     assert capsys.readouterr().out == """CEF:0|Github|test-syslogcef|14.1|100|Device is reachable|1|msg=Ping time is: 33ms
 CEF:0|Github|test-syslogcef|14.1|101|Device is slow to respond|5|msg=Ping time is: 521ms
-CEF:0|Github|test-syslogcef|14.1|102|Device is down|10|msg=Unreachable
+CEF:0|Github|test-syslogcef|14.1|102|Device is down|10|reason=Ping failed msg=Unreachable
 """

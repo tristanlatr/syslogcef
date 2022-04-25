@@ -6,25 +6,28 @@ from typing import Any, Dict, Union
 from rfc5424logging import Rfc5424SysLogHandler
 from cefevent import CEFEvent
 
-class _EventMeta:
-    """
-    Wrap a CEF event definition.
-    """
-
-    def __init__(self, signatureId:str, 
-                name:str, 
-                severity:int) -> None:
-
-        self._fields = dict(
-            signatureId = signatureId,
-            name = name,
-            severity = severity,
-        )
-
-class _Sender:
+class _CEFSender:
     """
     Base class to send CEF messages to logger.
     """
+
+    class _EventMeta:
+        """
+        Wrap a CEF event definition.
+        """
+
+        def __init__(self, signatureId:str, 
+                    name:str, 
+                    severity:int, 
+                    **fields:Any) -> None:
+
+            self.fields = dict(
+                signatureId = signatureId,
+                name = name,
+                severity = severity,
+            )
+            if fields:
+                self.fields.update(fields)
 
     def __init__(self, 
                 logger:Union[str, logging.Logger],
@@ -38,32 +41,31 @@ class _Sender:
         
         self.logger = logging.getLogger(logger) if isinstance(logger, str) else logger
 
-        self._fields = dict(
+        self.fields = dict(
             deviceProduct = deviceProduct,
         )
         if fields:
-            self._fields.update(fields)
+            self.fields.update(fields)
 
-        self.registered_events:Dict[str, _EventMeta] = {}
+        self.registered_events:Dict[str, _CEFSender._EventMeta] = {}
 
     def register_event(self, signatureId:str, name:str, severity:int, **fields:Any) -> None:
         """
         Register a new event definition.
         """
-        self.registered_events[signatureId] = _EventMeta(
+        self.registered_events[signatureId] = _CEFSender._EventMeta(
             signatureId=signatureId, 
             name=name, 
-            severity=severity
+            severity=severity,
+            **fields
         )
-        if fields:
-            self.registered_events[signatureId]._fields.update(fields)
     
     def _build_cef(self, signatureId:str, **fields:Any) -> str:
         event_meta = self.registered_events[signatureId]
 
         _fields: Dict[str, Any] = {}
-        _fields.update(self._fields)
-        _fields.update(event_meta._fields)
+        _fields.update(self.fields)
+        _fields.update(event_meta.fields)
         _fields.update(fields)
 
         cef = CEFEvent(strict=True)
@@ -89,10 +91,13 @@ class _Sender:
             signatureId: ID of the registered event.
             **fields: Additional fields to include into the CEF message, like ::
                 message="Error #28", sourceHostName="127.0.0.1"
+        
+        Raises:
+            ValueError: If the a field has invalid value.
         """
         self.logger.info(self._build_cef(signatureId, **fields))
 
-class SyslogCEFSender(_Sender):
+class SyslogCEFSender(_CEFSender):
     """
     Main object to easily send CEF messages to a syslog server.
     """
