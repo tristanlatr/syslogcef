@@ -23,4 +23,4 @@ syslog.register_event('102', 'CPU temp is too high', 9, reason="Exceeds 70 degre
 syslog.send('102', message="The CPU temp is 88 degres celsius.", sourceHostName="mydevice.mydomain.com", sourceMacAddress="00:00:ee:00:52:bb")
 ```
 
-See [CEFEvent](https://github.com/kamushadenes/cefevent/blob/master/cefevent/extensions.py) for complete list of fields. 
+See [cefevent](https://github.com/kamushadenes/cefevent/blob/master/cefevent/extensions.py) for complete list of fields. 
