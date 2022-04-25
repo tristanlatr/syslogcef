@@ -29,21 +29,16 @@ class _CEFSender:
             if fields:
                 self.fields.update(fields)
 
-    def __init__(self, 
-                logger:Union[str, logging.Logger],
-                deviceProduct:str, 
-                **fields:Any ) -> None:
+    def __init__(self, logger:Union[str, logging.Logger], **fields:Any ) -> None:
         """
-        Create a sender instance. 
+        Create a _CEFSender instance. 
         
         You might want to use SyslogCEFSender() to create a sender from syslog server hostname directly.
         """
         
         self.logger = logging.getLogger(logger) if isinstance(logger, str) else logger
 
-        self.fields = dict(
-            deviceProduct = deviceProduct,
-        )
+        self.fields = {}
         if fields:
             self.fields.update(fields)
 
@@ -59,7 +54,10 @@ class _CEFSender:
             severity=severity,
             **fields
         )
-    
+        
+        # try to build a CEF message to raise ValueError if the Event definition is invalid
+        self._build_cef(signatureId)
+
     def _build_cef(self, signatureId:str, **fields:Any) -> str:
         event_meta = self.registered_events[signatureId]
 
@@ -105,9 +103,6 @@ class SyslogCEFSender(_CEFSender):
     def __init__(self, host: str, 
                 port: str,
                 protocol:str,
-                deviceProduct: str, 
-                deviceVendor: str = 'Python script', 
-                deviceVersion: str = '0',
                 **fields: Any) -> None:
         """
         Create a SyslogCEFSender.
@@ -121,7 +116,7 @@ class SyslogCEFSender(_CEFSender):
         sh: Rfc5424SysLogHandler = Rfc5424SysLogHandler(
             address=(host, port),
             socktype=socket.SOCK_STREAM if protocol=='TCP' else socket.SOCK_DGRAM,  # Use TCP or UDP
-            appname=deviceProduct,
+            appname='syslogcef',
             enterprise_id=42, 
             msg_as_utf8=True, 
             utc_timestamp=True
@@ -129,7 +124,4 @@ class SyslogCEFSender(_CEFSender):
         logger.setLevel(logging.DEBUG)
         logger.addHandler(sh)
 
-        super().__init__(logger, deviceProduct, 
-            deviceVendor=deviceVendor, 
-            deviceVersion=deviceVersion, 
-            **fields)
+        super().__init__(logger, **fields)
