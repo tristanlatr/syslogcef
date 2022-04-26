@@ -10,6 +10,12 @@ Install:
 pip install syslogcef
 ```
 
+Test sending a few messages with:
+
+```bash
+python3 -m syslogcef.testmessages --host <host> --port <name> --proto [TCP|UDP]
+```
+
 Usage:
 
 ```python
