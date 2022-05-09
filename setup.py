@@ -19,7 +19,8 @@ setup(
     long_description    =   README,
     long_description_content_type   =   "text/markdown",
     python_requires     =   '>=3.6',
-    install_requires    =   ['rfc5424-logging-handler', 'cefevent',],
+    install_requires    =   ['rfc5424-logging-handler', 
+                             'cefevent>=0.5.3',],
     extras_require      =   {'dev': ["tox"]},
     keywords            =   ABOUT['__keywords__'],
 )
