@@ -9,4 +9,4 @@ __license__ = "MIT License"
 
 __keywords__ = "syslog cef"
 
-__version__ = "0.1.3"
+__version__ = "0.1.4"

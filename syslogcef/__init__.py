@@ -1,12 +1,22 @@
 import logging
 import socket
 import uuid
-from typing import Any, Dict, Union
+from typing import Any, Dict, TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from typing import Protocol
+else:
+    Protocol = object
 
 from rfc5424logging import Rfc5424SysLogHandler
 from cefevent import CEFEvent
+from cefevent.syslog import Syslog
 
-class _CEFSender:
+class SyslogSender(Protocol):
+    def __init__(self, host:str, port:int=514, protocol:str="UDP"):...
+    def send(self, msg:str) -> None:...
+
+class CEFSender:
     """
     Base class to send CEF messages to logger.
     """
@@ -29,26 +39,26 @@ class _CEFSender:
             if fields:
                 self.fields.update(fields)
 
-    def __init__(self, logger:Union[str, logging.Logger], **fields:Any ) -> None:
+    def __init__(self, syslog_sender:SyslogSender, **fields:Any ) -> None:
         """
-        Create a _CEFSender instance. 
+        Create a CEFSender instance. 
         
         You might want to use SyslogCEFSender() to create a sender from syslog server hostname directly.
         """
         
-        self.logger = logging.getLogger(logger) if isinstance(logger, str) else logger
+        self.syslog_sender = syslog_sender
 
         self.fields = {}
         if fields:
             self.fields.update(fields)
 
-        self.registered_events:Dict[str, _CEFSender._EventMeta] = {}
+        self.registered_events:Dict[str, CEFSender._EventMeta] = {}
 
     def register_event(self, signatureId:str, name:str, severity:int, **fields:Any) -> None:
         """
         Register a new event definition.
         """
-        self.registered_events[signatureId] = _CEFSender._EventMeta(
+        self.registered_events[signatureId] = CEFSender._EventMeta(
             signatureId=signatureId, 
             name=name, 
             severity=severity,
@@ -93,25 +103,26 @@ class _CEFSender:
         Raises:
             ValueError: If the a field has invalid value.
         """
-        self.logger.info(self._build_cef(signatureId, **fields))
+        self.syslog_sender.send(self._build_cef(signatureId, **fields))
 
-class SyslogCEFSender(_CEFSender):
-    """
-    Main object to easily send CEF messages to a syslog server.
-    """
-
-    def __init__(self, host: str, 
-                port: str,
-                protocol:str,
-                **fields: Any) -> None:
-        """
-        Create a SyslogCEFSender.
-        """
-        
+class cefeventSyslogSender(SyslogSender):
+    def __init__(self, host: str, port: int = 514, protocol: str = "UDP"):
         assert protocol in ["TCP", "UDP"], f"Invalid protocol {protocol!r}, please choose 'TCP' or 'UDP'."
+        self.host = host
+        self.port = port
+        self.protocol = protocol
         
+        self.syslog = Syslog(host=host, port=port, protocol=protocol)
+    
+    def send(self, msg: str) -> None:
+        self.syslog.notice(msg)
+        
+class Rfc5424SyslogSender(SyslogSender):
+    def __init__(self, host: str, port: int = 514, protocol: str = "UDP"):
+        assert protocol in ["TCP", "UDP"], f"Invalid protocol {protocol!r}, please choose 'TCP' or 'UDP'."
+
         logger_name = f'syslogcef-{uuid.uuid4()}'
-        logger = logging.getLogger(logger_name)
+        self.logger = logging.getLogger(logger_name)
         
         sh: Rfc5424SysLogHandler = Rfc5424SysLogHandler(
             address=(host, port),
@@ -121,7 +132,24 @@ class SyslogCEFSender(_CEFSender):
             msg_as_utf8=True, 
             utc_timestamp=True
         )
-        logger.setLevel(logging.DEBUG)
-        logger.addHandler(sh)
+        self.logger.setLevel(logging.DEBUG)
+        self.logger.addHandler(sh)
 
-        super().__init__(logger, **fields)
+    
+    def send(self, msg: str) -> None:
+        self.logger.info(msg)
+
+class SyslogCEFSender(CEFSender):
+    """
+    Main object to easily send CEF messages to a syslog server.
+    """
+
+    def __init__(self, host: str, 
+                port: str,
+                protocol:str,
+                syslog_sender_class:SyslogSender=Rfc5424SyslogSender,
+                **fields: Any) -> None:
+        """
+        Create a SyslogCEFSender.
+        """
+        super().__init__(syslog_sender_class(host=host, port=port, protocol=protocol), **fields)
