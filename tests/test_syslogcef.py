@@ -5,7 +5,7 @@ import sys
 
 import pytest
 
-from syslogcef import _CEFSender
+from syslogcef import CEFSender, SyslogSender
 
 if t.TYPE_CHECKING:
     class CapLog(t.Protocol):
@@ -48,9 +48,16 @@ def new_logger() -> 'str':
     setup_stdout_logger(logger_name)
     return logger_name
 
+class LogHandlerSyslogSender(SyslogSender):
+    def __init__(self, logger_name:str):
+        self.logger = logging.getLogger(logger_name)
+        
+    def send(self, msg: str) -> None:
+        self.logger.info(msg)
+
 def test_syslogcef(capsys:CapSys) -> None:
 
-    s = _CEFSender(new_logger(), 
+    s = CEFSender(LogHandlerSyslogSender(new_logger()), 
         deviceProduct='test-syslogcef', 
         deviceVendor='Github',
         deviceVersion='14.1')
@@ -70,7 +77,7 @@ CEF:0|Github|test-syslogcef|14.1|102|Device is down|10|reason=Ping failed msg=Un
 
 def test_syslogcef_defaults(capsys:CapSys) -> None:
 
-    s = _CEFSender(new_logger())
+    s = CEFSender(LogHandlerSyslogSender(new_logger()))
 
     s.register_event('100', 'Device is reachable', 1)
     s.register_event('101', 'Device is slow to respond', 5)
@@ -86,7 +93,7 @@ CEF:0|CEF Vendor|CEF Product|1.0|102|Device is down|10|reason=Ping failed msg=Un
 """
 
 def test_invalid_cef_field() -> None:
-    s = _CEFSender(new_logger())
+    s = CEFSender(LogHandlerSyslogSender(new_logger()))
     with pytest.raises(ValueError):
         s.register_event('100', 'Device is reachable', 1, host='name')
     with pytest.raises(ValueError):

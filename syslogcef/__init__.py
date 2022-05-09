@@ -1,7 +1,7 @@
 import logging
 import socket
 import uuid
-from typing import Any, Dict, TYPE_CHECKING
+from typing import Any, Dict, TYPE_CHECKING, Type
 
 if TYPE_CHECKING:
     from typing import Protocol
@@ -21,7 +21,7 @@ class CEFSender:
     Base class to send CEF messages to logger.
     """
 
-    class _EventMeta:
+    class EventMeta:
         """
         Wrap a CEF event definition.
         """
@@ -52,13 +52,13 @@ class CEFSender:
         if fields:
             self.fields.update(fields)
 
-        self.registered_events:Dict[str, CEFSender._EventMeta] = {}
+        self.registered_events:Dict[str, CEFSender.EventMeta] = {}
 
     def register_event(self, signatureId:str, name:str, severity:int, **fields:Any) -> None:
         """
         Register a new event definition.
         """
-        self.registered_events[signatureId] = CEFSender._EventMeta(
+        self.registered_events[signatureId] = CEFSender.EventMeta(
             signatureId=signatureId, 
             name=name, 
             severity=severity,
@@ -116,7 +116,7 @@ class cefeventSyslogSender(SyslogSender):
     
     def send(self, msg: str) -> None:
         self.syslog.notice(msg)
-        
+
 class Rfc5424SyslogSender(SyslogSender):
     def __init__(self, host: str, port: int = 514, protocol: str = "UDP"):
         assert protocol in ["TCP", "UDP"], f"Invalid protocol {protocol!r}, please choose 'TCP' or 'UDP'."
@@ -145,9 +145,9 @@ class SyslogCEFSender(CEFSender):
     """
 
     def __init__(self, host: str, 
-                port: str,
+                port: int,
                 protocol:str,
-                syslog_sender_class:SyslogSender=Rfc5424SyslogSender,
+                syslog_sender_class:Type[SyslogSender]=Rfc5424SyslogSender,
                 **fields: Any) -> None:
         """
         Create a SyslogCEFSender.
