@@ -105,7 +105,10 @@ class CEFSender:
         """
         self.syslog_sender.send(self._build_cef(signatureId, **fields))
 
-class cefeventSyslogSender(SyslogSender):
+class Rfc3164SyslogSender(SyslogSender):
+    """
+    `rfc3164 <https://datatracker.ietf.org/doc/html/rfc3164>`_ sender.
+    """
     def __init__(self, host: str, port: int = 514, protocol: str = "UDP"):
         assert protocol in ["TCP", "UDP"], f"Invalid protocol {protocol!r}, please choose 'TCP' or 'UDP'."
         self.host = host
@@ -117,7 +120,12 @@ class cefeventSyslogSender(SyslogSender):
     def send(self, msg: str) -> None:
         self.syslog.notice(msg)
 
+cefeventSyslogSender = Rfc3164SyslogSender # for compatibility, do not use in new code
+
 class Rfc5424SyslogSender(SyslogSender):
+    """
+    `rfc5424 <https://datatracker.ietf.org/doc/html/rfc5424>`_ sender.
+    """
     def __init__(self, host: str, port: int = 514, protocol: str = "UDP"):
         assert protocol in ["TCP", "UDP"], f"Invalid protocol {protocol!r}, please choose 'TCP' or 'UDP'."
 
@@ -134,7 +142,6 @@ class Rfc5424SyslogSender(SyslogSender):
         )
         self.logger.setLevel(logging.DEBUG)
         self.logger.addHandler(sh)
-
     
     def send(self, msg: str) -> None:
         self.logger.info(msg)
