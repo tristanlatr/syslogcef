@@ -2,7 +2,8 @@
 
 Python library to easily send CEF formatted messages to syslog server. 
 
-It uses [cefevent](https://pypi.org/project/cefevent/) to format message payloads and [rfc5424-logging-handler](https://pypi.org/project/rfc5424-logging-handler/) to send syslogs.
+It uses [cefevent](https://pypi.org/project/cefevent/) to format message payloads and 
+offer two strategies to send syslogs over the network: [RFC 5424](https://datatracker.ietf.org/doc/html/rfc5424) or [RFC 3164](https://datatracker.ietf.org/doc/html/rfc3164). RFC 5424 is the default.
 
 Install:
 
@@ -19,7 +20,7 @@ python3 -m syslogcef.testmessages --host <host> --port <port> --proto [TCP|UDP]
 Usage:
 
 ```python
-from syslogcef import SyslogCEFSender
+from syslogcef import SyslogCEFSender, Rfc3164SyslogSender
 
 # Create syslog sender.
 syslog = SyslogCEFSender(
@@ -31,7 +32,10 @@ syslog = SyslogCEFSender(
     # CEF fields applied to all events:
     deviceProduct='MyProgram', 
     deviceVendor='MyCompany',
-    deviceVersion='1.0.2')
+    deviceVersion='1.0.2',
+    # Overriding the default strategy to send syslog over the network with RFC 3164 format.
+    # Do not specify this argument to use RFC 5424.
+    syslog_sender_class=Rfc3164SyslogSender)
 
 # Register CEF events.
 syslog.register_event('100', name='CPU temp is OK', severity=0)
