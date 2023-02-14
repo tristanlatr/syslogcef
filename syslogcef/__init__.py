@@ -12,13 +12,16 @@ from rfc5424logging import Rfc5424SysLogHandler
 from cefevent import CEFEvent
 from cefevent.syslog import Syslog
 
+class SyslogSenderFactory(Protocol):
+    def __call__(self, host:str, port:int=514, protocol:str="UDP") -> 'SyslogSender':
+        ...
+
 class SyslogSender(Protocol):
-    def __init__(self, host:str, port:int=514, protocol:str="UDP"):...
     def send(self, msg:str) -> None:...
 
 class CEFSender:
     """
-    Base class to send CEF messages to logger.
+    Base class to send CEF messages.
     """
 
     class EventMeta:
@@ -43,7 +46,7 @@ class CEFSender:
         """
         Create a CEFSender instance. 
         
-        You might want to use SyslogCEFSender() to create a sender from syslog server hostname directly.
+        You might want to use SyslogCEFSender to create a sender from syslog server hostname directly.
         """
         
         self.syslog_sender = syslog_sender
@@ -146,15 +149,34 @@ class Rfc5424SyslogSender(SyslogSender):
     def send(self, msg: str) -> None:
         self.logger.info(msg)
 
+class StdoutSyslogSender(SyslogSender):
+    """
+    Send CEF messages to stdout.
+    """
+    def send(self, msg:str) -> None:
+        print(msg)
+
+class CompositeSyslogSender(SyslogSender):
+    """
+    Send CEF messages to several underlying senders.
+    """
+    def __init__(self, *senders:SyslogSender) -> None:
+        self.senders = senders
+    def send(self, msg:str) -> None:
+        for sender in self.senders:
+            sender.send(msg)
+
 class SyslogCEFSender(CEFSender):
     """
     Main object to easily send CEF messages to a syslog server.
+
+    You might want to use CEFSender to have more flexibility.
     """
 
     def __init__(self, host: str, 
                 port: int,
                 protocol:str,
-                syslog_sender_class:Type[SyslogSender]=Rfc5424SyslogSender,
+                syslog_sender_class:SyslogSenderFactory=Rfc5424SyslogSender,
                 **fields: Any) -> None:
         """
         Create a SyslogCEFSender.
