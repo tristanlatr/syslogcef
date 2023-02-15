@@ -129,20 +129,29 @@ class Rfc5424SyslogSender(SyslogSender):
     """
     `rfc5424 <https://datatracker.ietf.org/doc/html/rfc5424>`_ sender.
     """
-    def __init__(self, host: str, port: int = 514, protocol: str = "UDP"):
+    def __init__(self, host: str, port: int = 514, protocol: str = "UDP", **kwargs:Any):
+        """
+        :param kwargs: Any extra arguments are forwarded to Rfc5424SysLogHandler instance.
+        """
         assert protocol in ["TCP", "UDP"], f"Invalid protocol {protocol!r}, please choose 'TCP' or 'UDP'."
 
         logger_name = f'syslogcef-{uuid.uuid4()}'
         self.logger = logging.getLogger(logger_name)
-        
-        sh: Rfc5424SysLogHandler = Rfc5424SysLogHandler(
-            address=(host, port),
-            socktype=socket.SOCK_STREAM if protocol=='TCP' else socket.SOCK_DGRAM,  # Use TCP or UDP
+
+        init_kwargs = dict(
             appname='syslogcef',
             enterprise_id=42, 
             msg_as_utf8=True, 
             utc_timestamp=True
         )
+        init_kwargs.update(**kwargs)
+        
+        sh: Rfc5424SysLogHandler = Rfc5424SysLogHandler(
+            address=(host, port),
+            socktype=socket.SOCK_STREAM if protocol=='TCP' else socket.SOCK_DGRAM,  # Use TCP or UDP
+            **init_kwargs,
+        )
+        
         self.logger.setLevel(logging.DEBUG)
         self.logger.addHandler(sh)
     
